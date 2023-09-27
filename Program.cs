@@ -1,111 +1,66 @@
 using System;
-using System.Collections.Generic;
-using OfficeOpenXml;
-using System.IO;
 
-public class Program
+namespace MesaiUygulamasi
 {
-    public static void Main()
+    public class Personel
     {
-        GasStation station = new GasStation();
+        public TimeSpan GirisSaati { get; set; }
+        public TimeSpan CikisSaati { get; set; }
 
-        CashRegister cashRegister = new CashRegister(station);
-        cashRegister.AddEntry("Sale 1", 50.5);
-        cashRegister.AddEntry("Sale 2", 30.2);
-        cashRegister.AddEntry("Sale 3", 20.7);
-
-        Market market = new Market(station);
-        market.AddProduct("Product A", 10.0);
-        market.AddProduct("Product B", 20.0);
-        market.AddProduct("Product C", 15.0);
-        market.AddProduct("Product D", 25.0);
-
-        market.SellProducts();
-
-        station.SaveToExcel("sales_data.xlsx");
-    }
-}
-
-public class GasStation
-{
-    private List<string> registerEntries = new List<string>();
-    private double totalSales = 0.0;
-
-    public void AddEntry(string entry, double amount)
-    {
-        registerEntries.Add($"{entry},{amount}");
-    }
-
-    public void CalculateTotalSales()
-    {
-        foreach (var entry in registerEntries)
+        public TimeSpan HesaplaCalismaSuresi()
         {
-            double amount = Convert.ToDouble(entry.Split(',')[1]);
-            totalSales += amount;
+            return CikisSaati - GirisSaati;
         }
     }
 
-    public void SaveToExcel(string fileName)
+    public class Mesai
     {
-        using (var package = new ExcelPackage())
+        private const double SaatlikMesaiUcreti = 50;
+        private static readonly TimeSpan MesaiBaslangic = new TimeSpan(9, 0, 0);
+        private static readonly TimeSpan MesaiBitis = new TimeSpan(18, 0, 0);
+        private static readonly TimeSpan Mola = new TimeSpan(1, 0, 0);
+
+        public static double HesaplaMesaiUcreti(TimeSpan calismaSuresi)
         {
-            var worksheet = package.Workbook.Worksheets.Add("Register Entries");
-            int row = 1;
-            foreach (var entry in registerEntries)
+            if (calismaSuresi > (MesaiBitis - MesaiBaslangic))
             {
-                worksheet.Cells[row, 1].Value = entry;
-                row++;
+                TimeSpan mesaiSuresi = calismaSuresi - (MesaiBitis - MesaiBaslangic) - Mola;
+                return mesaiSuresi.TotalHours * SaatlikMesaiUcreti;
             }
-            worksheet.Cells[row, 1].Value = "Total";
-            worksheet.Cells[row, 2].Value = totalSales;
-
-            FileInfo excelFile = new FileInfo(fileName);
-            package.SaveAs(excelFile);
+            return 0;
         }
     }
-}
 
-public class CashRegister
-{
-    private GasStation station;
-
-    public CashRegister(GasStation station)
+    class Program
     {
-        this.station = station;
-    }
-
-    public void AddEntry(string description, double amount)
-    {
-        station.AddEntry($"{description},{amount}");
-    }
-}
-
-public class Market
-{
-    private Dictionary<string, double> products = new Dictionary<string, double>();
-    private GasStation station;
-
-    public Market(GasStation station)
-    {
-        this.station = station;
-    }
-
-    public void AddProduct(string name, double price)
-    {
-        products.Add(name, price);
-    }
-
-    public void SellProducts()
-    {
-        Random rand = new Random();
-
-        foreach (var product in products)
+        static void Main(string[] args)
         {
-            double quantity = rand.Next(1, 10);
-            double totalAmount = product.Value * quantity;
-            station.AddEntry($"Sale: {product.Key}, Quantity: {quantity}, Total: {totalAmount}", totalAmount);
+            TimeZoneInfo germanyTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
+            DateTime germanyNow = TimeZoneInfo.ConvertTime(DateTime.Now, germanyTimeZone);
 
-            products[product.Key] -= quantity;
+            Console.WriteLine($"Almanya Saati: {germanyNow.TimeOfDay}");
+
+            Personel personel = new Personel
+            {
+                GirisSaati = SorSaat("Personelin giriş saatini HH:mm formatında giriniz:"),
+                CikisSaati = SorSaat("Personelin çıkış saatini HH:mm formatında giriniz:")
+            };
+
+            TimeSpan calismaSuresi = personel.HesaplaCalismaSuresi() - Mesai.Mola;
+            double mesaiUcreti = Mesai.HesaplaMesaiUcreti(calismaSuresi);
+
+            Console.WriteLine($"Personel {calismaSuresi.TotalHours:0.##} saat çalıştı ve {mesaiUcreti:0.##} TL mesai ücreti aldı.");
+        }
+
+        static TimeSpan SorSaat(string mesaj)
+        {
+            TimeSpan saat;
+            Console.WriteLine(mesaj);
+            while (!TimeSpan.TryParse(Console.ReadLine(), out saat))
+            {
+                Console.WriteLine("Hatalı format! Lütfen HH:mm formatında giriniz:");
+            }
+            return saat;
         }
     }
 }
