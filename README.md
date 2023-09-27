@@ -1,2 +1,3 @@
 # Automation_Systems_with_C_Sharp-Bootcamp
-Mesai Uygulaması
+Program.cs: Working hours app
+Program2.cs: Gas Station App
